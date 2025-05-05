@@ -1,0 +1,80 @@
+#define BLYNK_TEMPLATE_ID "TMPL6VRbD4dAR"
+#define BLYNK_TEMPLATE_NAME "demo"
+#define BLYNK_PRINT Serial
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+#define BLYNK_AUTH_TOKEN "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb"
+#define analogPin A0
+#define led D2
+
+char ssid[] = "P101td";//tên wifi
+char pass[] = "p101521td";//pass
+char auth[] = "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb";
+
+BlynkTimer timer;
+
+bool autoMode = true;             // true = tự động, false = thủ công
+bool manualLedState = false;     // trạng thái LED trong chế độ thủ công
+int phantram = 0;
+
+// Đọc cảm biến ánh sáng mỗi 1 giây
+void readLightSensor() {
+  int value = analogRead(analogPin);
+  phantram = map(value, 0, 1023, 100, 0);
+  Serial.print("Ánh sáng: ");
+  Serial.print(phantram);
+  Serial.println("%");
+
+  Blynk.virtualWrite(V3, phantram); // Gửi độ sáng lên V3
+
+  if (autoMode) {
+    if (phantram <= 20) {
+      digitalWrite(led, HIGH);
+      Serial.println("TỰ ĐỘNG: BẬT LED");
+    } else {
+      digitalWrite(led, LOW);
+      Serial.println("TỰ ĐỘNG: TẮT LED");
+    }
+  }
+}
+
+// V1: Chuyển đổi giữa tự động và thủ công
+BLYNK_WRITE(V1) {
+  int mode = param.asInt();
+  autoMode = (mode == 1); // 1 = thủ công, 0 = tự động (tùy bạn đảo lại)
+
+  Serial.print("Chuyển chế độ: ");
+  Serial.println(autoMode ? "TỰ ĐỘNG" : "THỦ CÔNG");
+
+  if (autoMode) {
+    manualLedState = false;
+    digitalWrite(led, LOW);
+    Blynk.virtualWrite(V2, 0); // Reset nút V2 khi về tự động
+  }
+}
+
+// V2: Bật/tắt LED khi ở chế độ thủ công
+BLYNK_WRITE(V2) {
+  if (!autoMode) {
+    manualLedState = param.asInt();
+    digitalWrite(led, manualLedState ? HIGH : LOW);
+    Serial.print("THỦ CÔNG LED: ");
+    Serial.println(manualLedState ? "BẬT" : "TẮT");
+  } else {
+    Serial.println("ĐANG Ở TỰ ĐỘNG - V2 KHÔNG TÁC DỤNG");
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  Blynk.begin(auth, ssid, pass);
+  pinMode(led, OUTPUT);
+  timer.setInterval(1000L, readLightSensor); // Đọc cảm biến mỗi 1 giây
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
