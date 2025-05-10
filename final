@@ -1,0 +1,90 @@
+#define BLYNK_TEMPLATE_ID "TMPL6VRbD4dAR"
+#define BLYNK_TEMPLATE_NAME "demo"
+#define BLYNK_PRINT Serial
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+#define BLYNK_AUTH_TOKEN "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb"
+#define analogPin A0
+#define led D2
+#define RELAY_PIN D1
+
+char ssid[] = "vivo Y22s";//tên wifi
+char pass[] = "123456789";//pass
+char auth[] = "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb";
+
+BlynkTimer timer;
+
+bool autoMode = true;             // true = tự động, false = thủ công
+bool manualLedState = false;     // trạng thái LED trong chế độ thủ công
+int phantram = 0;
+
+// Hàm bật/tắt LED và relay đồng thời
+void controlOutput(bool state) {
+  digitalWrite(led, state ? HIGH : LOW);
+  digitalWrite(RELAY_PIN, state ? HIGH : LOW); // LOW = kích relay
+}
+
+// Đọc cảm biến ánh sáng mỗi 1 giây
+void readLightSensor() {
+  int value = analogRead(analogPin);
+  phantram = map(value, 0, 1023, 100, 0);
+  Serial.print("Ánh sáng: ");
+  Serial.print(phantram);
+  Serial.println("%");
+
+  Blynk.virtualWrite(V3, value); // Gửi độ sáng lên V3
+
+  if (autoMode) {
+    if (phantram <= 20) {
+      controlOutput(true); // Bật LED và relay
+      Serial.println("TỰ ĐỘNG: BẬT LED & RELAY");
+    } else {
+      controlOutput(false); // Tắt LED và relay
+      Serial.println("TỰ ĐỘNG: TẮT LED & RELAY");
+    }
+  }
+}
+
+// V1: Chuyển đổi giữa tự động và thủ công
+BLYNK_WRITE(V1) {
+  int mode = param.asInt();
+  autoMode = (mode == 1); // 1 = thủ công, 0 = tự động
+
+  Serial.print("Chuyển chế độ: ");
+  Serial.println(autoMode ? "TỰ ĐỘNG" : "THỦ CÔNG");
+
+  if (autoMode) {
+    manualLedState = false;
+    controlOutput(false);
+    Blynk.virtualWrite(V2, 0); // Reset nút V2 khi về tự động
+  }
+}
+
+// V2: Bật/tắt LED khi ở chế độ thủ công
+BLYNK_WRITE(V2) {
+  if (!autoMode) {
+    manualLedState = param.asInt();
+    controlOutput(manualLedState);
+    Serial.print("THỦ CÔNG LED: ");
+    Serial.println(manualLedState ? "BẬT" : "TẮT");
+  } else {
+    Serial.println("ĐANG Ở TỰ ĐỘNG - V2 KHÔNG TÁC DỤNG");
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  Blynk.begin(auth, ssid, pass);
+  pinMode(led, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH); // Mặc định relay không kích
+  controlOutput(false); // Tắt toàn bộ ban đầu
+  timer.setInterval(1000L, readLightSensor); // Đọc cảm biến mỗi 1 giây
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
