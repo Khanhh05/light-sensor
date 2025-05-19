@@ -10,15 +10,15 @@
 #define led D2
 #define RELAY_PIN D1
 
-char ssid[] = "vivo Y22s";//tên wifi
-char pass[] = "123456789";//pass
-char auth[] = "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb";
+char ssid[] = "P101td";            // Tên WiFi
+char pass[] = "p101521td";         // Mật khẩu WiFi
+char auth[] = "uvaRlc2lyvQBo2cvfjr5YI8fh-7Zb7Cb";  // Blynk auth token
 
 BlynkTimer timer;
 
 bool autoMode = true;             // true = tự động, false = thủ công
 bool manualLedState = false;     // trạng thái LED trong chế độ thủ công
-int phantram = 0;
+int phantram = 0;                 // phần trăm ánh sáng (vẫn giữ nguyên để hiển thị nếu muốn)
 
 // Hàm bật/tắt LED và relay đồng thời
 void controlOutput(bool state) {
@@ -26,16 +26,24 @@ void controlOutput(bool state) {
   digitalWrite(RELAY_PIN, state ? HIGH : LOW); // LOW = kích relay
 }
 
-// Đọc cảm biến ánh sáng mỗi 1 giây
+// Đọc cảm biến ánh sáng mỗi 1 giây và tính Lux
 void readLightSensor() {
-  int value = analogRead(analogPin);
-  phantram = map(value, 0, 1023, 100, 0);
+  int adc = analogRead(analogPin);
+
+  // Giữ lại phần trăm ánh sáng nếu bạn cần dùng tiếp
+  phantram = map(adc, 0, 1023, 100, 0);
+  float gamma = 0.8;
+  float voltage = adc * 3.3 / 1023.0;
+float lux = 55 * pow(3.3 - voltage, gamma); // dùng phần ánh sáng bị mất// 10000 là giá trị chuẩn hóa
+
   Serial.print("Ánh sáng: ");
-  Serial.print(phantram);
-  Serial.println("%");
+  Serial.print(lux);
+  Serial.println(" lux");
 
-  Blynk.virtualWrite(V3, value); // Gửi độ sáng lên V3
+  // Gửi lux lên Blynk V3
+  Blynk.virtualWrite(V3, lux);
 
+  // Điều khiển chế độ tự động
   if (autoMode) {
     if (phantram <= 20) {
       controlOutput(true); // Bật LED và relay
@@ -45,6 +53,14 @@ void readLightSensor() {
       Serial.println("TỰ ĐỘNG: TẮT LED & RELAY");
     }
   }
+}
+
+// V3: nhận dữ liệu 
+BLYNK_WRITE(V3)
+{
+  int receivedValue = param.asInt();
+  Serial.print("Nhận từ Blynk V3: ");
+  Serial.println(receivedValue);
 }
 
 // V1: Chuyển đổi giữa tự động và thủ công
