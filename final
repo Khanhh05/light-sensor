@@ -34,7 +34,7 @@ void readLightSensor() {
   phantram = map(adc, 0, 1023, 100, 0);
   float gamma = 0.8;
   float voltage = adc * 3.3 / 1023.0;
-float lux = 55 * pow(3.3 - voltage, gamma); // dùng phần ánh sáng bị mất// 10000 là giá trị chuẩn hóa
+float lux = 500 * pow(3.3 - voltage, gamma); // dùng phần ánh sáng bị mất// 10000 là giá trị chuẩn hóa
 
   Serial.print("Ánh sáng: ");
   Serial.print(lux);
